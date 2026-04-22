@@ -3,16 +3,20 @@ const mongoose = require('mongoose');
 const studentSchema = new mongoose.Schema({
   uid: { type: String, required: true, unique: true }, // Custom UUID
   email: { type: String, required: true, unique: true },
+  fullName: { type: String, required: true },
   password: { type: String, required: true },
   isVerified: { type: Boolean, default: false },
   verificationCode: { type: String },
   verificationCodeExpires: { type: Date },
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
+  program: { type: String },
   rollNo: { type: String },
   branch: { type: String },
   currentSemester: { type: Number, default: 1 },
+  profilePic: { type: String },
   lastSemRollDate: { type: Date },
+  role: { type: String, enum: ['student', 'admin'], default: 'student' },
   
   // Focus Stats embedded
   focusStats: {

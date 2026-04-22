@@ -21,8 +21,8 @@ api.interceptors.request.use((config) => {
 });
 
 export const authService = {
-  signup: async (email, password, fullName) => {
-    const response = await api.post('/auth/signup', { email, password, fullName });
+  signup: async (email, password, fullName, program, branch) => {
+    const response = await api.post('/auth/signup', { email, password, fullName, program, branch });
     return response.data;
   },
   verify: async (email, code) => {
@@ -82,6 +82,10 @@ export const attendanceService = {
   },
   getTimetable: async (docId) => {
     const response = await api.get(`/students/timetable/${docId}`);
+    return response.data;
+  },
+  updateTimetable: async (docId, schedule) => {
+    const response = await api.put(`/students/timetable/${docId}`, { schedule });
     return response.data;
   }
 };

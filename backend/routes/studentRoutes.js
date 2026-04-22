@@ -116,6 +116,21 @@ router.get('/timetable/:docId', async (req, res) => {
   }
 });
 
+// PUT Timetable (Admin updating the global timetable)
+router.put('/timetable/:docId', async (req, res) => {
+  try {
+    const { Timetable } = require('../models');
+    const updatedTT = await Timetable.findOneAndUpdate(
+      { docId: req.params.docId },
+      req.body,
+      { new: true, upsert: true }
+    );
+    res.json(updatedTT);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET Curriculum (by docId like CSE_Sem1)
 router.get('/curriculum/:docId', async (req, res) => {
   try {
@@ -168,6 +183,12 @@ router.put('/:uid/attendance/:courseCode', async (req, res) => {
     if (existing && req.body.lastMarkedDate && existing.lastMarkedDate === req.body.lastMarkedDate) {
       return res.status(400).json({ error: "Attendance already marked for this course today" });
     }
+
+    // Prevent MongoServerError by removing immutable fields before update
+    delete req.body._id;
+    delete req.body.createdAt;
+    delete req.body.updatedAt;
+    delete req.body.__v;
 
     const attendance = await Attendance.findOneAndUpdate(
       { userId: req.params.uid, courseCode: req.params.courseCode },

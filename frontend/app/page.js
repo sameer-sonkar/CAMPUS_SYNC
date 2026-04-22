@@ -22,7 +22,9 @@ export default function AuthPage() {
     email: "",
     password: "",
     code: "",
-    newPassword: ""
+    newPassword: "",
+    program: "B.Tech",
+    branch: "CSE"
   });
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -57,7 +59,7 @@ export default function AuthPage() {
         router.push('/dashboard');
       } else {
         // Step 1B: Signup
-        await authService.signup(formData.email, formData.password, formData.fullName);
+        await authService.signup(formData.email, formData.password, formData.fullName, formData.program, formData.branch);
         setShowVerification(true);
       }
     } catch (err) {
@@ -190,10 +192,39 @@ export default function AuthPage() {
               /* LOGIN & SIGNUP VIEW */
               <>
                 {!isLogin && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Full Name</label>
-                    <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required={!isLogin} className="input-premium" placeholder="John Doe" />
-                  </div>
+                  <>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Full Name</label>
+                      <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required={!isLogin} className="input-premium" placeholder="John Doe" />
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Program</label>
+                        <select name="program" value={formData.program} onChange={handleChange} required className="input-premium">
+                          <option value="B.Tech">B.Tech</option>
+                          <option value="M.Tech">M.Tech</option>
+                          <option value="B.Sc">B.Sc</option>
+                          <option value="M.Sc">M.Sc</option>
+                          <option value="PhD">PhD</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Branch</label>
+                        <select name="branch" value={formData.branch} onChange={handleChange} required className="input-premium">
+                          <option value="CSE">CSE</option>
+                          <option value="Civil">Civil</option>
+                          <option value="Mechanical">Mechanical</option>
+                          <option value="Electrical">Electrical</option>
+                          <option value="ECE">ECE</option>
+                          <option value="Chemical">Chemical</option>
+                          <option value="Metallurgy">Metallurgy</option>
+                          <option value="Economics">Economics</option>
+                          <option value="AI & DS">AI & DS</option>
+                          <option value="Mathematics and Computing">Mathematics and Computing</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
                 )}
                 
                 <div>

@@ -9,12 +9,44 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const { Student } = require('./models');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('✅ Connected to MongoDB Atlas'))
+.then(async () => {
+  console.log('✅ Connected to MongoDB Atlas');
+  
+  // Seed Admin User
+  try {
+    const adminEmail = 'sksonkar850@gmail.com';
+    const existingAdmin = await Student.findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('labibamenal123@', salt);
+      const newAdmin = new Student({
+        uid: crypto.randomUUID(),
+        email: adminEmail,
+        fullName: 'System Admin',
+        password: hashedPassword,
+        isVerified: true,
+        role: 'admin'
+      });
+      await newAdmin.save();
+      console.log('✅ Admin user created automatically');
+    } else if (existingAdmin.role !== 'admin') {
+      existingAdmin.role = 'admin';
+      await existingAdmin.save();
+      console.log('✅ Existing user upgraded to Admin');
+    }
+  } catch (error) {
+    console.error('❌ Failed to seed admin:', error);
+  }
+})
 .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Routes

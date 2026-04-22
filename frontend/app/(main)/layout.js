@@ -1,4 +1,5 @@
 import Sidebar from '@/components/Sidebar';
+import HeaderAvatar from '@/components/HeaderAvatar';
 
 export default function DashboardLayout({ children }) {
   return (
@@ -14,11 +15,7 @@ export default function DashboardLayout({ children }) {
           padding: '0 2rem',
           justifyContent: 'flex-end'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-              CS
-            </div>
-          </div>
+          <HeaderAvatar />
         </header>
         <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
           {children}

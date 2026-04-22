@@ -21,7 +21,7 @@ const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString()
 // 1. SIGNUP ROUTE (Generates OTP and Sends Email)
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, program, branch } = req.body;
 
     // Check if user already exists
     const existingUser = await Student.findOne({ email });
@@ -41,11 +41,13 @@ router.post('/signup', async (req, res) => {
     const newStudent = new Student({
       uid: crypto.randomUUID(), // Generate custom unique ID
       email,
+      fullName,
+      program,
+      branch,
       password: hashedPassword,
       verificationCode,
       verificationCodeExpires,
       isVerified: false,
-      // You can store fullName in a profile map or separate field later
     });
 
     await newStudent.save();

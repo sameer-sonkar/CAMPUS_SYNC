@@ -1,11 +1,31 @@
 "use client";
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, BookOpen, Calendar, GraduationCap, User } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Calendar, GraduationCap, User, Settings } from 'lucide-react';
+import { studentService } from '@/lib/api';
 
 export default function Sidebar() {
   const pathname = usePathname();
+
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const uid = localStorage.getItem('uid');
+        if (!uid) return;
+        const profile = await studentService.getStudent(uid);
+        if (profile?.role === 'admin') {
+          setIsAdmin(true);
+        }
+      } catch (error) {
+        console.error("Failed to check admin status", error);
+      }
+    };
+    checkAdmin();
+  }, []);
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
@@ -14,6 +34,10 @@ export default function Sidebar() {
     { name: 'Grades', path: '/grades', icon: <GraduationCap size={20} /> },
     { name: 'Profile', path: '/profile', icon: <User size={20} /> },
   ];
+
+  if (isAdmin) {
+    navItems.push({ name: 'Admin Portal', path: '/admin', icon: <Settings size={20} /> });
+  }
 
   return (
     <div style={{
