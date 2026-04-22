@@ -162,6 +162,13 @@ router.put('/:uid/attendanceMeta', async (req, res) => {
 router.put('/:uid/attendance/:courseCode', async (req, res) => {
   try {
     const { Attendance } = require('../models');
+    
+    // Check constraint: Can only mark once per day
+    const existing = await Attendance.findOne({ userId: req.params.uid, courseCode: req.params.courseCode });
+    if (existing && req.body.lastMarkedDate && existing.lastMarkedDate === req.body.lastMarkedDate) {
+      return res.status(400).json({ error: "Attendance already marked for this course today" });
+    }
+
     const attendance = await Attendance.findOneAndUpdate(
       { userId: req.params.uid, courseCode: req.params.courseCode },
       req.body,

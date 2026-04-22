@@ -5,7 +5,7 @@ const { PlannerTask, SmartReminder } = require('../models');
 // GET all tasks for a user
 router.get('/:uid', async (req, res) => {
   try {
-    const tasks = await PlannerTask.find({ userId: req.params.uid }).sort({ dateTime: 1 });
+    const tasks = await PlannerTask.find({ userId: req.params.uid }).sort({ dueDate: 1 });
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: error.message });

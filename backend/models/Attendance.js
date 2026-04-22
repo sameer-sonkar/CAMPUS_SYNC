@@ -9,7 +9,9 @@ const attendanceSchema = new mongoose.Schema({
   Tuesday: { type: Number, default: 0 },
   Wednesday: { type: Number, default: 0 },
   Thursday: { type: Number, default: 0 },
-  Friday: { type: Number, default: 0 }
+  Friday: { type: Number, default: 0 },
+  lastMarkedDate: { type: String, default: "" },
+  lastMarkedStatus: { type: String, enum: ["present", "absent", ""], default: "" }
 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

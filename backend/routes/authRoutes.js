@@ -119,10 +119,69 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, student.password);
     if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
 
+    // Fix for legacy users: if they don't have a uid, generate one
+    if (!student.uid) {
+      student.uid = crypto.randomUUID();
+      await student.save();
+    }
+
     // Generate JWT Token
     const token = jwt.sign({ uid: student.uid }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '7d' });
 
     res.json({ message: 'Login successful', token, uid: student.uid });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4. FORGOT PASSWORD ROUTE
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const student = await Student.findOne({ email });
+    if (!student) return res.status(404).json({ error: 'User not found' });
+
+    const resetCode = generateOTP();
+    student.resetPasswordToken = resetCode;
+    student.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    await student.save();
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      await transporter.sendMail({
+        from: `"Campus Sync" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Password Reset Request',
+        html: `<h2>Password Reset</h2>
+               <p>Your password reset code is: <strong>${resetCode}</strong></p>
+               <p>This code will expire in 10 minutes.</p>`,
+      });
+    } else {
+      console.log(`[TEST MODE] Reset Code for ${email} is: ${resetCode}`);
+    }
+
+    res.json({ message: 'Password reset code sent to email' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 5. RESET PASSWORD ROUTE
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    const student = await Student.findOne({ email });
+    
+    if (!student) return res.status(404).json({ error: 'User not found' });
+    if (student.resetPasswordToken !== code) return res.status(400).json({ error: 'Invalid reset code' });
+    if (student.resetPasswordExpires < new Date()) return res.status(400).json({ error: 'Reset code has expired' });
+
+    const salt = await bcrypt.genSalt(10);
+    student.password = await bcrypt.hash(newPassword, salt);
+    student.resetPasswordToken = undefined;
+    student.resetPasswordExpires = undefined;
+    await student.save();
+
+    res.json({ message: 'Password has been successfully reset' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

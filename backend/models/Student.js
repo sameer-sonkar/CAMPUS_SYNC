@@ -7,6 +7,8 @@ const studentSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   verificationCode: { type: String },
   verificationCodeExpires: { type: Date },
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date },
   rollNo: { type: String },
   branch: { type: String },
   currentSemester: { type: Number, default: 1 },
