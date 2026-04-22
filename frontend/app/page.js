@@ -1,14 +1,18 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Calendar, GraduationCap } from "lucide-react";
 import { authService } from "@/lib/api";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showVerification, setShowVerification] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -17,7 +21,8 @@ export default function AuthPage() {
     fullName: "",
     email: "",
     password: "",
-    code: ""
+    code: "",
+    newPassword: ""
   });
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,27 +30,57 @@ export default function AuthPage() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
 
     try {
-      if (showVerification) {
-        // Step 3: Verify OTP
+      if (showResetPassword) {
+        // Step 4: Submit Reset Password
+        await authService.resetPassword(formData.email, formData.code, formData.newPassword);
+        setSuccess("Password reset successfully! Please log in.");
+        setShowResetPassword(false);
+        setShowForgotPassword(false);
+        setIsLogin(true);
+      } else if (showForgotPassword) {
+        // Step 3: Request Forgot Password OTP
+        await authService.forgotPassword(formData.email);
+        setSuccess("Reset code sent to your email!");
+        setShowResetPassword(true);
+        setShowForgotPassword(false);
+      } else if (showVerification) {
+        // Step 2: Verify Signup OTP
         await authService.verify(formData.email, formData.code);
         router.push('/dashboard');
       } else if (isLogin) {
-        // Step 1: Login
+        // Step 1A: Login
         await authService.login(formData.email, formData.password);
         router.push('/dashboard');
       } else {
-        // Step 2: Signup
+        // Step 1B: Signup
         await authService.signup(formData.email, formData.password, formData.fullName);
-        setShowVerification(true); // Switch to verification screen
+        setShowVerification(true);
       }
     } catch (err) {
       setError(err.response?.data?.error || "An error occurred");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getFormTitle = () => {
+    if (showResetPassword) return "Reset Password 🔒";
+    if (showForgotPassword) return "Forgot Password? 🔑";
+    if (showVerification) return "Check your Email 📧";
+    if (isLogin) return "Welcome Back 👋";
+    return "Create Account ✨";
+  };
+
+  const getFormSubtitle = () => {
+    if (showResetPassword) return `Enter the 6-digit code sent to ${formData.email} and your new password.`;
+    if (showForgotPassword) return "Enter your email to receive a password reset code.";
+    if (showVerification) return `We sent a 6-digit code to ${formData.email}.`;
+    if (isLogin) return "Enter your details to access your dashboard.";
+    return "Sign up to start organizing your academic life.";
   };
 
   return (
@@ -106,33 +141,54 @@ export default function AuthPage() {
           style={{ width: '100%', maxWidth: '420px', padding: '3rem 2.5rem', margin: '2rem' }}
         >
           <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-            {showVerification ? 'Check your Email 📧' : isLogin ? 'Welcome Back 👋' : 'Create Account ✨'}
+            {getFormTitle()}
           </h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', fontWeight: 500 }}>
-            {showVerification 
-              ? `We sent a 6-digit code to ${formData.email}.`
-              : isLogin 
-                ? 'Enter your details to access your dashboard.' 
-                : 'Sign up to start organizing your academic life.'}
+            {getFormSubtitle()}
           </p>
 
-          {error && (
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--danger)', color: 'white', borderRadius: '8px', marginBottom: '1rem', fontWeight: 600 }}>
-              {error}
-            </div>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ padding: '0.75rem', backgroundColor: 'var(--danger)', color: 'white', borderRadius: '8px', marginBottom: '1rem', fontWeight: 600 }}>
+                {error}
+              </motion.div>
+            )}
+            {success && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ padding: '0.75rem', backgroundColor: 'var(--success)', color: 'white', borderRadius: '8px', marginBottom: '1rem', fontWeight: 600 }}>
+                {success}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             
-            {/* OTP VERIFICATION VIEW */}
-            {showVerification ? (
+            {/* RESET PASSWORD VIEW */}
+            {showResetPassword ? (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Reset Code</label>
+                  <input type="text" name="code" value={formData.code} onChange={handleChange} required className="input-premium" placeholder="123456" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>New Password</label>
+                  <input type="password" name="newPassword" value={formData.newPassword} onChange={handleChange} required className="input-premium" placeholder="••••••••" />
+                </div>
+              </>
+            ) : showForgotPassword ? (
+              /* FORGOT PASSWORD VIEW */
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Email Address</label>
+                <input type="email" name="email" value={formData.email} onChange={handleChange} required className="input-premium" placeholder="student@university.edu" />
+              </div>
+            ) : showVerification ? (
+              /* OTP VERIFICATION VIEW */
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Verification Code</label>
                 <input type="text" name="code" value={formData.code} onChange={handleChange} required className="input-premium" placeholder="123456" />
               </div>
             ) : (
+              /* LOGIN & SIGNUP VIEW */
               <>
-                {/* SIGNUP EXTRA FIELD */}
                 {!isLogin && (
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Full Name</label>
@@ -140,14 +196,20 @@ export default function AuthPage() {
                   </div>
                 )}
                 
-                {/* COMMON FIELDS */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Email Address</label>
                   <input type="email" name="email" value={formData.email} onChange={handleChange} required className="input-premium" placeholder="student@university.edu" />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Password</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)' }}>Password</label>
+                    {isLogin && (
+                      <span onClick={() => { setShowForgotPassword(true); setError(""); setSuccess(""); }} style={{ fontSize: '0.8rem', color: 'var(--primary-dark)', cursor: 'pointer', fontWeight: 700 }}>
+                        Forgot Password?
+                      </span>
+                    )}
+                  </div>
                   <input type="password" name="password" value={formData.password} onChange={handleChange} required className="input-premium" placeholder="••••••••" />
                 </div>
               </>
@@ -156,23 +218,36 @@ export default function AuthPage() {
             <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: '1rem', width: '100%', padding: '1rem', fontSize: '1rem', opacity: loading ? 0.7 : 1 }}>
               {loading 
                 ? 'Processing...' 
-                : showVerification 
-                  ? 'Verify & Enter' 
-                  : isLogin 
-                    ? 'Sign In' 
-                    : 'Sign Up'}
+                : showResetPassword 
+                  ? 'Reset Password' 
+                  : showForgotPassword
+                    ? 'Send Reset Code'
+                    : showVerification 
+                      ? 'Verify & Enter' 
+                      : isLogin 
+                        ? 'Sign In' 
+                        : 'Sign Up'}
             </button>
           </form>
 
+          {/* BACK TO LOGIN NAVIGATOR */}
           {!showVerification && (
             <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <span 
-                onClick={() => { setIsLogin(!isLogin); setError(""); }}
-                style={{ color: 'var(--primary-dark)', cursor: 'pointer', fontWeight: 700 }}
-              >
-                {isLogin ? 'Sign up' : 'Log in'}
-              </span>
+              {(showForgotPassword || showResetPassword) ? (
+                <span onClick={() => { setShowForgotPassword(false); setShowResetPassword(false); setIsLogin(true); setError(""); setSuccess(""); }} style={{ color: 'var(--primary-dark)', cursor: 'pointer', fontWeight: 700 }}>
+                  ← Back to Login
+                </span>
+              ) : (
+                <>
+                  {isLogin ? "Don't have an account? " : "Already have an account? "}
+                  <span 
+                    onClick={() => { setIsLogin(!isLogin); setError(""); setSuccess(""); }}
+                    style={{ color: 'var(--primary-dark)', cursor: 'pointer', fontWeight: 700 }}
+                  >
+                    {isLogin ? 'Sign up' : 'Log in'}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </motion.div>

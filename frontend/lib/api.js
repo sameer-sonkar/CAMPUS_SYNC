@@ -41,6 +41,14 @@ export const authService = {
     }
     return response.data;
   },
+  forgotPassword: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+  resetPassword: async (email, code, newPassword) => {
+    const response = await api.post('/auth/reset-password', { email, code, newPassword });
+    return response.data;
+  },
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('uid');
@@ -93,6 +101,25 @@ export const reminderService = {
   },
   deleteLibraryBook: async (uid, bookId) => {
     const response = await api.delete(`/reminders/${uid}/library/${bookId}`);
+    return response.data;
+  }
+};
+
+export const plannerService = {
+  getTasks: async (uid) => {
+    const response = await api.get(`/planner/${uid}`);
+    return response.data;
+  },
+  addTask: async (uid, data) => {
+    const response = await api.post(`/planner/${uid}`, data);
+    return response.data;
+  },
+  updateTask: async (uid, taskId, data) => {
+    const response = await api.put(`/planner/${uid}/${taskId}`, data);
+    return response.data;
+  },
+  deleteTask: async (uid, taskId) => {
+    const response = await api.delete(`/planner/${uid}/${taskId}`);
     return response.data;
   }
 };

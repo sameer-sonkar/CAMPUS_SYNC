@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Book, Clock, Play, Square, Bell, Plus, Trash2 } from 'lucide-react';
-import { reminderService } from '@/lib/api';
+import { reminderService, studentService } from '@/lib/api';
 
 export default function DashboardPage() {
   // Focus Timer State
@@ -12,21 +12,41 @@ export default function DashboardPage() {
   const timerRef = useRef(null);
 
   // Library State
-  const [libraryBooks, setLibraryBooks] = useState([
-    { id: '1', title: 'Calculus Early Transcendentals', dueDate: new Date(Date.now() + 86400000).toISOString() },
-  ]);
+  const [libraryBooks, setLibraryBooks] = useState([]);
   const [newBookTitle, setNewBookTitle] = useState("");
   const [newBookDays, setNewBookDays] = useState("");
   const [libraryError, setLibraryError] = useState("");
 
   // Reminders State
-  const [reminders, setReminders] = useState([
-    { id: 'r1', text: 'Submit OS Assignment', isDone: false }
-  ]);
+  const [reminders, setReminders] = useState([]);
   const [newReminder, setNewReminder] = useState("");
   const [reminderError, setReminderError] = useState("");
 
-  const uid = typeof window !== 'undefined' ? localStorage.getItem('uid') || 'mock-user-id' : 'mock-user-id';
+  const [uid, setUid] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUid(localStorage.getItem('uid'));
+    }
+  }, []);
+  // Initial Data Fetch
+  useEffect(() => {
+    if (!uid) return;
+    
+    const fetchDashboardData = async () => {
+      try {
+        const books = await reminderService.getLibraryBooks(uid);
+        setLibraryBooks(books);
+
+        const smartReminders = await reminderService.getSmartReminders(uid);
+        setReminders(smartReminders);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      }
+    };
+    
+    fetchDashboardData();
+  }, [uid]);
 
   // --- Timer Logic ---
   useEffect(() => {
@@ -38,13 +58,17 @@ export default function DashboardPage() {
       // Timer finished!
       clearInterval(timerRef.current);
       setIsRunning(false);
-      // In a full app, call API here: studentService.saveFocusSession(uid, initialMinutes)
+      
+      if (uid) {
+        studentService.saveFocusSession(uid, initialMinutes).catch(console.error);
+      }
+      
       alert(`🎉 Focus session complete! You studied for ${initialMinutes} minutes.`);
       setTimeLeft(initialMinutes * 60);
     }
 
     return () => clearInterval(timerRef.current);
-  }, [isRunning, timeLeft, initialMinutes]);
+  }, [isRunning, timeLeft, initialMinutes, uid]);
 
   const toggleTimer = () => setIsRunning(!isRunning);
   
@@ -68,42 +92,68 @@ export default function DashboardPage() {
   };
 
   // --- Library Logic ---
-  const handleReturnBook = (bookId) => {
-    // In a real app: await reminderService.deleteLibraryBook(uid, bookId);
-    setLibraryBooks(prev => prev.filter(b => b.id !== bookId));
+  const handleReturnBook = async (bookId) => {
+    if (!uid) return;
+    try {
+      await reminderService.deleteLibraryBook(uid, bookId);
+      setLibraryBooks(prev => prev.filter(b => b._id !== bookId));
+    } catch (error) {
+      console.error("Failed to return book:", error);
+    }
   };
 
-  const handleAddBook = (e) => {
+  const handleAddBook = async (e) => {
     e.preventDefault();
     if (!newBookTitle.trim() || !newBookDays) {
       setLibraryError("Book title and due date are required!");
       return;
     }
+    if (!uid) return;
+
     setLibraryError("");
-    const newBook = {
-      id: Date.now().toString(),
-      title: newBookTitle,
-      dueDate: new Date(newBookDays).toISOString()
-    };
-    setLibraryBooks([...libraryBooks, newBook]);
-    setNewBookTitle("");
-    setNewBookDays("");
+    try {
+      const newBook = await reminderService.addLibraryBook(uid, newBookTitle, newBookDays);
+      setLibraryBooks([...libraryBooks, newBook]);
+      setNewBookTitle("");
+      setNewBookDays("");
+    } catch (error) {
+      console.error("Failed to add book:", error);
+      setLibraryError("Failed to add book. Please try again.");
+    }
   };
 
   // --- Reminder Logic ---
-  const handleAddReminder = (e) => {
+  const handleAddReminder = async (e) => {
     e.preventDefault();
     if (!newReminder.trim()) {
       setReminderError("Reminder cannot be empty!");
       return;
     }
+    if (!uid) return;
+
     setReminderError("");
-    setReminders([...reminders, { id: Date.now().toString(), text: newReminder, isDone: false }]);
-    setNewReminder("");
+    try {
+      // Assuming you want to treat manual reminders as 'smart reminders' for now
+      // A more complete implementation might separate manual vs auto reminders in the DB
+      // We will simulate it by just showing it locally since the endpoint for adding manual reminders doesn't exist yet
+      setReminders([...reminders, { _id: Date.now().toString(), title: newReminder }]);
+      setNewReminder("");
+    } catch (error) {
+      console.error("Failed to add reminder:", error);
+    }
   };
 
-  const deleteReminder = (id) => {
-    setReminders(prev => prev.filter(r => r.id !== id));
+  const deleteReminder = async (id) => {
+    if (!uid) return;
+    try {
+      // If it's a real MongoDB ID, delete it. If it's our simulated timestamp ID, just filter it locally.
+      if (id.length > 20) {
+        // We don't have a specific delete endpoint for manual reminders exported yet, but we'll filter it.
+      }
+      setReminders(prev => prev.filter(r => r._id !== id));
+    } catch (error) {
+      console.error("Failed to delete reminder:", error);
+    }
   };
 
   return (
@@ -192,7 +242,7 @@ export default function DashboardPage() {
                   const isUrgent = new Date(book.dueDate).getTime() - Date.now() < 86400000 * 2; // Less than 2 days
                   return (
                     <motion.div 
-                      key={book.id}
+                      key={book._id}
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, scale: 0.9, height: 0 }}
@@ -204,7 +254,7 @@ export default function DashboardPage() {
                           Due: {new Date(book.dueDate).toLocaleDateString()}
                         </span>
                       </div>
-                      <button onClick={() => handleReturnBook(book.id)} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 800 }}>Return</button>
+                      <button onClick={() => handleReturnBook(book._id)} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 800 }}>Return</button>
                     </motion.div>
                   )
                 })
@@ -256,14 +306,14 @@ export default function DashboardPage() {
               ) : (
                 reminders.map(rem => (
                   <motion.div 
-                    key={rem.id}
+                    key={rem._id}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', backgroundColor: 'var(--background)', borderRadius: '12px' }}
                   >
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{rem.text}</span>
-                    <button onClick={() => deleteReminder(rem.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{rem.title}</span>
+                    <button onClick={() => deleteReminder(rem._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                       <Trash2 size={18} />
                     </button>
                   </motion.div>
