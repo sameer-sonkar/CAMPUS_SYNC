@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Book, Clock, Play, Square, Bell, Plus, Trash2, Activity, Zap, CheckCircle2, Calendar, Coffee, Inbox } from 'lucide-react';
-import { reminderService, studentService, analyticsService, attendanceService } from '@/lib/api';
+import { reminderService, studentService, analyticsService, attendanceService, plannerService } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis, LineChart, Line, Legend } from 'recharts';
 import {
   DashboardContainer, Header, Title, Subtitle, Section, SectionTitle, SectionTitleWhite,
@@ -43,6 +44,12 @@ export default function DashboardPage() {
   const [uid, setUid] = useState(null);
   const [studentName, setStudentName] = useState("");
   const [studentCpi, setStudentCpi] = useState("0.0");
+  const [lastSemCpi, setLastSemCpi] = useState("0.0");
+  const [leetcodeStreak, setLeetcodeStreak] = useState(0);
+  const [averageAttendance, setAverageAttendance] = useState(0);
+  const [taskStats, setTaskStats] = useState({ completed: 0, total: 0 });
+
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -70,12 +77,35 @@ export default function DashboardPage() {
 
         const aData = await analyticsService.getAttendanceTimeline(uid);
         setAttendanceData(aData);
+        
+        if (aData && aData.timeline && aData.timeline.length > 0) {
+          const lastWeek = aData.timeline[aData.timeline.length - 1];
+          let totalScore = 0;
+          let coursesCount = 0;
+          for (let key in lastWeek) {
+            if (key !== 'name' && typeof lastWeek[key] === 'number') {
+              totalScore += lastWeek[key];
+              coursesCount++;
+            }
+          }
+          if (coursesCount > 0) {
+            setAverageAttendance(Math.round(totalScore / coursesCount));
+          }
+        }
+
+        const tasks = await plannerService.getTasks(uid);
+        const todayStr = new Date().toLocaleDateString();
+        const todaysTasks = tasks.filter(t => new Date(t.dueDate).toLocaleDateString() === todayStr);
+        const completedToday = todaysTasks.filter(t => t.status === 'completed' || t.isCompleted).length;
+        setTaskStats({ completed: completedToday, total: todaysTasks.length });
 
         // Fetch Today's Classes & Student Data
         const student = await studentService.getStudent(uid);
         if (student) {
           setStudentName(student.fullName?.split(' ')[0] || "Student");
-          setStudentCpi(student.cpi || "8.4"); // Mock or real
+          setStudentCpi(student.cpi || "0.0");
+          setLastSemCpi(student.lastSemCpi || "0.0");
+          setLeetcodeStreak(student.leetcodeStreak || 0);
 
           if (student.branch && student.rollNo) {
             const startYear = student.rollNo.length >= 2 ? 2000 + parseInt(student.rollNo.substring(0, 2)) : 2024;
@@ -111,14 +141,48 @@ export default function DashboardPage() {
   }, [uid]);
 
   // --- Timer Logic ---
+  // Restore timer state on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedEndTime = localStorage.getItem('focusTimerEndTime');
+    const savedInitialMinutes = localStorage.getItem('focusTimerInitialMinutes');
+    const savedPausedTime = localStorage.getItem('focusTimerPausedTimeLeft');
+
+    if (savedEndTime) {
+      const endTime = parseInt(savedEndTime, 10);
+      const remaining = Math.floor((endTime - Date.now()) / 1000);
+      if (savedInitialMinutes) setInitialMinutes(parseInt(savedInitialMinutes, 10));
+      
+      if (remaining > 0) {
+        setTimeLeft(remaining);
+        setIsRunning(true);
+      } else {
+        // Timer finished while user was on another page
+        setTimeLeft(0);
+        setIsRunning(true); // Setting true will instantly trigger the completion block below
+      }
+    } else if (savedPausedTime) {
+      setTimeLeft(parseInt(savedPausedTime, 10));
+      if (savedInitialMinutes) setInitialMinutes(parseInt(savedInitialMinutes, 10));
+    }
+  }, []);
+
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
       timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
+        const savedEndTime = localStorage.getItem('focusTimerEndTime');
+        if (savedEndTime) {
+          const remaining = Math.floor((parseInt(savedEndTime, 10) - Date.now()) / 1000);
+          setTimeLeft(remaining >= 0 ? remaining : 0);
+        } else {
+          setTimeLeft((prev) => prev - 1);
+        }
       }, 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && isRunning) {
       clearInterval(timerRef.current);
       setIsRunning(false);
+      localStorage.removeItem('focusTimerEndTime');
+      localStorage.removeItem('focusTimerPausedTimeLeft');
       
       if (uid) {
         studentService.saveFocusSession(uid, initialMinutes).catch(console.error);
@@ -135,11 +199,24 @@ export default function DashboardPage() {
     return () => clearInterval(timerRef.current);
   }, [isRunning, timeLeft, initialMinutes, uid]);
 
-  const toggleTimer = () => setIsRunning(!isRunning);
+  const toggleTimer = () => {
+    if (isRunning) {
+      setIsRunning(false);
+      localStorage.removeItem('focusTimerEndTime');
+      localStorage.setItem('focusTimerPausedTimeLeft', timeLeft.toString());
+    } else {
+      setIsRunning(true);
+      localStorage.setItem('focusTimerEndTime', (Date.now() + timeLeft * 1000).toString());
+      localStorage.setItem('focusTimerInitialMinutes', initialMinutes.toString());
+      localStorage.removeItem('focusTimerPausedTimeLeft');
+    }
+  };
   
   const resetTimer = () => {
     clearInterval(timerRef.current);
     setIsRunning(false);
+    localStorage.removeItem('focusTimerEndTime');
+    localStorage.removeItem('focusTimerPausedTimeLeft');
     setTimeLeft(initialMinutes * 60);
   };
 
@@ -147,6 +224,8 @@ export default function DashboardPage() {
     if (!isRunning) {
       setInitialMinutes(mins);
       setTimeLeft(mins * 60);
+      localStorage.setItem('focusTimerInitialMinutes', mins.toString());
+      localStorage.setItem('focusTimerPausedTimeLeft', (mins * 60).toString());
     }
   };
 
@@ -212,10 +291,10 @@ export default function DashboardPage() {
             Good morning, {studentName || 'Student'}! 🌻
           </h1>
           <p style={{ color: '#888', margin: 0, fontSize: '0.95rem', fontWeight: 500 }}>
-            You have {reminders.length || 3} tasks due today · Attendance: {attendanceData?.timeline?.[attendanceData.timeline.length-1]?.Total || 89}% this week
+          You have {reminders.length || taskStats.total} tasks due today · Attendance: {averageAttendance}% this week
           </p>
         </div>
-        <button style={{ padding: '0.75rem 1.5rem', backgroundColor: '#FFD700', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={() => router.push('/planner')} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#FFD700', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
           + New Task
         </button>
       </div>
@@ -234,22 +313,24 @@ export default function DashboardPage() {
               {/* Card 1: Attendance */}
               <div style={{ padding: '1.5rem', backgroundColor: '#0A0A0A', border: '1px solid #222', borderRadius: '12px' }}>
                 <p style={{ color: '#888', fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.5rem 0' }}>Attendance</p>
-                <h3 style={{ color: '#00b8a3', fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>{attendanceData?.timeline?.[attendanceData.timeline.length-1]?.Total || 89}%</h3>
+                <h3 style={{ color: '#00b8a3', fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>{averageAttendance}%</h3>
                 <p style={{ color: '#00b8a3', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>↑ Safe zone</p>
               </div>
 
               {/* Card 2: Tasks Done */}
               <div style={{ padding: '1.5rem', backgroundColor: '#0A0A0A', border: '1px solid #222', borderRadius: '12px' }}>
                 <p style={{ color: '#888', fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.5rem 0' }}>Tasks done</p>
-                <h3 style={{ color: '#FFD700', fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>4/7</h3>
-                <p style={{ color: '#FFD700', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>57% today</p>
+                <h3 style={{ color: '#FFD700', fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>{taskStats.completed}/{taskStats.total}</h3>
+                <p style={{ color: '#FFD700', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>
+                  {taskStats.total > 0 ? Math.round((taskStats.completed / taskStats.total) * 100) : 0}% today
+                </p>
               </div>
 
               {/* Card 3: Current GPA */}
               <div style={{ padding: '1.5rem', backgroundColor: '#0A0A0A', border: '1px solid #222', borderRadius: '12px' }}>
                 <p style={{ color: '#888', fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.5rem 0' }}>Current GPA</p>
                 <h3 style={{ color: '#fff', fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>{studentCpi}</h3>
-                <p style={{ color: '#888', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>Last sem: 8.1</p>
+                <p style={{ color: '#888', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>Last sem: {lastSemCpi}</p>
               </div>
 
               {/* Card 4: LeetCode Streak */}
@@ -257,7 +338,7 @@ export default function DashboardPage() {
                 <p style={{ color: '#888', fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.5rem 0' }}>LeetCode streak</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                   <span style={{ fontSize: '1.5rem' }}>🔥</span>
-                  <h3 style={{ color: '#fff', fontSize: '2rem', fontWeight: 800, margin: 0 }}>12</h3>
+                  <h3 style={{ color: '#fff', fontSize: '2rem', fontWeight: 800, margin: 0 }}>{leetcodeStreak}</h3>
                 </div>
                 <p style={{ color: '#FF5252', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>days</p>
               </div>
@@ -473,21 +554,6 @@ export default function DashboardPage() {
 
             </GridCharts>
 
-            {/* Daily Heatmap / Scatter */}
-            <HeatmapCard>
-              <ChartCardTitle>30-Day Activity Heatmap</ChartCardTitle>
-              <ChartContainerWrapper>
-                <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart margin={{ top: 20, right: 20, bottom: 0, left: -20 }}>
-                    <XAxis type="category" dataKey="hour" name="Time" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis type="number" dataKey="activity" name="Activity" hide />
-                    <ZAxis type="number" dataKey="activity" range={[20, 400]} />
-                    <Tooltip cursor={{ strokeDasharray: '3 3', stroke: '#333' }} contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
-                    <Scatter data={dailyData.heatmapData} fill="#318CE7" shape="circle" />
-                  </ScatterChart>
-                </ResponsiveContainer>
-              </ChartContainerWrapper>
-            </HeatmapCard>
 
             {/* Smart Attendance Graph */}
             <ChartCard>

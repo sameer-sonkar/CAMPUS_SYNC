@@ -261,6 +261,10 @@ export const analyticsService = {
   getAttendanceTimeline: async (uid) => {
     const response = await api.get(`/analytics/${uid}/attendance-timeline`);
     return response.data;
+  },
+  getLeaderboard: async () => {
+    const response = await api.get(`/analytics/leaderboard`);
+    return response.data;
   }
 };
 

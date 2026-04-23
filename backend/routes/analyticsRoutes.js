@@ -6,12 +6,14 @@ const { ActivityLog, PlannerTask } = require('../models');
 router.get('/:id/weekly', async (req, res) => {
   try {
     const uid = req.params.id;
+    const mongoose = require('mongoose');
+    const objectId = new mongoose.Types.ObjectId(uid);
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // 1. Weekly Tasks Completed (Bar Chart)
     const taskLogs = await ActivityLog.aggregate([
-      { $match: { userId: uid, action: 'task_completed', timestamp: { $gte: sevenDaysAgo } } },
+      { $match: { userId: objectId, action: 'task_completed', timestamp: { $gte: sevenDaysAgo } } },
       { $project: { dayOfWeek: { $dayOfWeek: "$timestamp" } } },
       { $group: { _id: "$dayOfWeek", count: { $sum: 1 } } }
     ]);
@@ -28,7 +30,7 @@ router.get('/:id/weekly', async (req, res) => {
 
     // 2. Study Hours per Subject (Pie Chart)
     const focusLogs = await ActivityLog.aggregate([
-      { $match: { userId: uid, action: 'focus_session', timestamp: { $gte: sevenDaysAgo } } },
+      { $match: { userId: objectId, action: 'focus_session', timestamp: { $gte: sevenDaysAgo } } },
       { $group: { _id: "$category", totalMinutes: { $sum: "$duration" } } }
     ]);
 
@@ -323,6 +325,74 @@ router.get('/:id/attendance-timeline', async (req, res) => {
     }
 
     res.json({ timeline, courses });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /leaderboard - Campus-Wide Productivity Leaderboard
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    
+    const leaderboard = await Student.aggregate([
+      // 0. Exclude admins and System Admin
+      { $match: { $and: [ { role: { $ne: 'admin' } }, { fullName: { $ne: 'System Admin' } } ] } },
+      // 1. Join PlannerTasks
+      {
+        $lookup: {
+          from: 'plannertasks',
+          localField: '_id',
+          foreignField: 'userId',
+          as: 'tasks'
+        }
+      },
+      // 2. Join DSASubmissions
+      {
+        $lookup: {
+          from: 'dsasubmissions',
+          localField: '_id',
+          foreignField: 'userId',
+          as: 'dsa'
+        }
+      },
+      // 3. Project necessary fields and calculate score
+      {
+        $project: {
+          fullName: 1,
+          branch: 1,
+          program: 1,
+          'focusStats.todayMinutes': 1,
+          completedTasks: {
+            $size: {
+              $filter: {
+                input: '$tasks',
+                as: 'task',
+                cond: { $eq: ['$$task.status', 'completed'] }
+              }
+            }
+          },
+          dsaSolved: { $size: '$dsa' },
+          // Score formula: (focusToday / 10) + (completedTasks * 10) + (dsaSolved * 50)
+          productivityScore: {
+            $add: [
+              { $divide: [{ $ifNull: ['$focusStats.todayMinutes', 0] }, 10] },
+              { $multiply: [
+                  { $size: { $filter: { input: '$tasks', as: 'task', cond: { $eq: ['$$task.status', 'completed'] } } } }, 
+                  10
+              ]},
+              { $multiply: [{ $size: '$dsa' }, 50] }
+            ]
+          }
+        }
+      },
+      // 4. Sort by score descending
+      { $sort: { productivityScore: -1 } },
+      // 5. Limit to Top 10
+      { $limit: 10 }
+    ]);
+    
+    res.json(leaderboard);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -14,6 +14,8 @@ const studentSchema = new mongoose.Schema({
   rollNo: { type: String },
   branch: { type: String },
   currentSemester: { type: Number, default: 1 },
+  cpi: { type: Number, default: 0.0 },
+  lastSemCpi: { type: Number, default: 0.0 },
   profilePic: { type: String },
   lastSemRollDate: { type: Date },
   role: { type: String, enum: ['student', 'admin'], default: 'student' },

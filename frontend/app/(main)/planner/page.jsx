@@ -62,14 +62,20 @@ export default function PlannerPage() {
     fetchData();
   }, [uid]);
 
-  const toggleTask = async (id, currentCompletedStatus) => {
+  const cycleTaskStatus = async (e, id, currentStatus) => {
+    e.stopPropagation();
     if (!uid) return;
-    const newStatus = currentCompletedStatus ? 'todo' : 'completed';
-    setTasks(tasks.map(t => t._id === id ? { ...t, isCompleted: !currentCompletedStatus, status: newStatus } : t));
+    let newStatus = 'in-progress';
+    if (currentStatus === 'in-progress') newStatus = 'completed';
+    if (currentStatus === 'completed') newStatus = 'todo';
+    
+    const isCompleted = newStatus === 'completed';
+    setTasks(tasks.map(t => t._id === id ? { ...t, status: newStatus, isCompleted } : t));
+    
     try {
-      await plannerService.updateTask(uid, id, { isCompleted: !currentCompletedStatus, status: newStatus });
+      await plannerService.updateTask(uid, id, { status: newStatus, isCompleted });
     } catch (error) {
-      setTasks(tasks.map(t => t._id === id ? { ...t, isCompleted: currentCompletedStatus, status: currentCompletedStatus ? 'completed' : 'todo' } : t));
+      console.error("Failed to update status", error);
     }
   };
 
@@ -329,9 +335,24 @@ export default function PlannerPage() {
 
                       <div style={{ fontSize: '0.8rem', color: '#888', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>{parseCategory(task.description)}</span>
-                        <DeleteBtn style={{ padding: 0 }} onClick={(e) => handleDeleteTask(e, task._id)}>
-                          <Trash2 size={16} />
-                        </DeleteBtn>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button 
+                            onClick={(e) => cycleTaskStatus(e, task._id, colStatus)}
+                            style={{ 
+                              background: 'transparent', 
+                              border: '1px solid #444', 
+                              color: '#fff', 
+                              borderRadius: '4px', 
+                              padding: '2px 8px', 
+                              cursor: 'pointer',
+                              fontSize: '0.75rem'
+                            }}>
+                            {colStatus === 'todo' ? 'Start' : colStatus === 'in-progress' ? 'Complete' : 'Reopen'}
+                          </button>
+                          <DeleteBtn style={{ padding: 0 }} onClick={(e) => handleDeleteTask(e, task._id)}>
+                            <Trash2 size={16} />
+                          </DeleteBtn>
+                        </div>
                       </div>
 
                       {colStatus !== 'todo' && (

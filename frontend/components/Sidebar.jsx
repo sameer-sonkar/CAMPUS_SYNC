@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BookOpen, Calendar, GraduationCap, User, Settings, Folder, Code } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Calendar, GraduationCap, User, Settings, Folder, Code, Trophy } from 'lucide-react';
 import { studentService } from '@/lib/api';
 import {
   SidebarContainer,
@@ -43,6 +43,7 @@ export default function Sidebar() {
     { name: 'Grades', path: '/grades', icon: <GraduationCap size={20} /> },
     { name: 'My Documents', path: '/documents', icon: <Folder size={20} /> },
     { name: 'Algorithms Hub', path: '/coding', icon: <Code size={20} /> },
+    { name: 'Leaderboard', path: '/leaderboard', icon: <Trophy size={20} /> },
     { name: 'Profile', path: '/profile', icon: <User size={20} /> },
   ];
 
