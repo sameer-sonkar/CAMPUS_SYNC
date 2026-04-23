@@ -40,7 +40,7 @@ export const authService = {
     const response = await api.post('/auth/verify', { email, code });
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('uid', response.data.uid);
+      localStorage.setItem('uid', response.data.id);
     }
     return response.data;
   },
@@ -48,7 +48,7 @@ export const authService = {
     const response = await api.post('/auth/login', { email, password });
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('uid', response.data.uid);
+      localStorage.setItem('uid', response.data.id);
     }
     return response.data;
   },

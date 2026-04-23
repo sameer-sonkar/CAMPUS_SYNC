@@ -39,7 +39,6 @@ router.post('/signup', async (req, res) => {
 
     // Create unverified student
     const newStudent = new Student({
-      uid: crypto.randomUUID(), // Generate custom unique ID
       email,
       fullName,
       program,
@@ -97,9 +96,9 @@ router.post('/verify', async (req, res) => {
     await student.save();
 
     // Generate JWT Token
-    const token = jwt.sign({ uid: student.uid }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '7d' });
+    const token = jwt.sign({ id: student._id }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '7d' });
 
-    res.json({ message: 'Email successfully verified!', token, uid: student.uid });
+    res.json({ message: 'Email successfully verified!', token, id: student._id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -121,16 +120,10 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, student.password);
     if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // Fix for legacy users: if they don't have a uid, generate one
-    if (!student.uid) {
-      student.uid = crypto.randomUUID();
-      await student.save();
-    }
-
     // Generate JWT Token
-    const token = jwt.sign({ uid: student.uid }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '7d' });
+    const token = jwt.sign({ id: student._id }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '7d' });
 
-    res.json({ message: 'Login successful', token, uid: student.uid });
+    res.json({ message: 'Login successful', token, id: student._id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { ActivityLog, PlannerTask } = require('../models');
 
-// GET /:uid/weekly
-router.get('/:uid/weekly', async (req, res) => {
+// GET /:id/weekly
+router.get('/:id/weekly', async (req, res) => {
   try {
-    const uid = req.params.uid;
+    const uid = req.params.id;
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -62,10 +62,10 @@ router.get('/:uid/weekly', async (req, res) => {
   }
 });
 
-// GET /:uid/daily (Heatmap / Hourly Distribution)
-router.get('/:uid/daily', async (req, res) => {
+// GET /:id/daily (Heatmap / Hourly Distribution)
+router.get('/:id/daily', async (req, res) => {
   try {
-    const uid = req.params.uid;
+    const uid = req.params.id;
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -117,13 +117,13 @@ router.get('/:uid/daily', async (req, res) => {
   }
 });
 
-// GET /:uid/smart-attendance
-router.get('/:uid/smart-attendance', async (req, res) => {
+// GET /:id/smart-attendance
+router.get('/:id/smart-attendance', async (req, res) => {
   try {
     const { Timetable, Attendance, Student } = require('../models');
-    const uid = req.params.uid;
+    const uid = req.params.id;
     
-    const student = await Student.findOne({ uid });
+    const student = await Student.findById(uid);
     if (!student) return res.json([]);
     
     // Derive docId exactly as frontend does
@@ -206,13 +206,13 @@ router.get('/:uid/smart-attendance', async (req, res) => {
   }
 });
 
-// GET /:uid/attendance-timeline
-router.get('/:uid/attendance-timeline', async (req, res) => {
+// GET /:id/attendance-timeline
+router.get('/:id/attendance-timeline', async (req, res) => {
   try {
     const { Timetable, Attendance, Student } = require('../models');
-    const uid = req.params.uid;
+    const uid = req.params.id;
     
-    const student = await Student.findOne({ uid });
+    const student = await Student.findById(uid);
     if (!student) return res.json({ timeline: [], courses: [] });
     
     let docId = 'DUMMY';
@@ -329,3 +329,4 @@ router.get('/:uid/attendance-timeline', async (req, res) => {
 });
 
 module.exports = router;
+

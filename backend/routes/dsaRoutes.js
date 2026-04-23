@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { DSASubmission } = require('../models');
 
-// POST /:uid/submit
-router.post('/:uid/submit', async (req, res) => {
+// POST /:id/submit
+router.post('/:id/submit', async (req, res) => {
   try {
     const { title, link, platform, difficulty, topic, notes } = req.body;
     const newSub = await DSASubmission.create({
-      userId: req.params.uid,
+      userId: req.params.id,
       title, link, platform, difficulty, topic, notes
     });
     res.status(201).json(newSub);
@@ -16,10 +16,10 @@ router.post('/:uid/submit', async (req, res) => {
   }
 });
 
-// GET /:uid/progress
-router.get('/:uid/progress', async (req, res) => {
+// GET /:id/progress
+router.get('/:id/progress', async (req, res) => {
   try {
-    const uid = req.params.uid;
+    const uid = req.params.id;
     
     // Total Solved
     const totalSolved = await DSASubmission.countDocuments({ userId: uid });
@@ -60,10 +60,10 @@ router.get('/:uid/progress', async (req, res) => {
   }
 });
 
-// GET /:uid/daily-suggestion
-router.get('/:uid/daily-suggestion', async (req, res) => {
+// GET /:id/daily-suggestion
+router.get('/:id/daily-suggestion', async (req, res) => {
   try {
-    const uid = req.params.uid;
+    const uid = req.params.id;
     
     const BLIND_75 = [
       { title: "Two Sum", difficulty: "Easy", topic: "Arrays & Hashing", link: "https://leetcode.com/problems/two-sum/" },
@@ -98,3 +98,4 @@ router.get('/:uid/daily-suggestion', async (req, res) => {
 });
 
 module.exports = router;
+

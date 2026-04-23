@@ -2,13 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { Student, PastSemester } = require('../models');
 
-// (Moved GET /:uid to the bottom to prevent route shadowing)
+// (Moved GET /:id to the bottom to prevent route shadowing)
 
 // UPDATE Student Data
-router.put('/:uid', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { ...req.body, updatedAt: new Date() },
       { new: true, upsert: true }
     );
@@ -19,9 +19,9 @@ router.put('/:uid', async (req, res) => {
 });
 
 // GET Past Semesters
-router.get('/:uid/pastSemesters', async (req, res) => {
+router.get('/:id/pastSemesters', async (req, res) => {
   try {
-    const sems = await PastSemester.find({ userId: req.params.uid }).sort({ semester: 1 });
+    const sems = await PastSemester.find({ userId: req.params.id }).sort({ semester: 1 });
     res.json(sems);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -29,18 +29,18 @@ router.get('/:uid/pastSemesters', async (req, res) => {
 });
 
 // ADD (Archive) Past Semester
-router.post('/:uid/pastSemesters', async (req, res) => {
+router.post('/:id/pastSemesters', async (req, res) => {
   try {
     const { semester, spi, cpi, credit } = req.body;
     
     // Check if already archived
-    const existing = await PastSemester.findOne({ userId: req.params.uid, semester });
+    const existing = await PastSemester.findOne({ userId: req.params.id, semester });
     if (existing) {
       return res.status(400).json({ error: 'Semester already archived' });
     }
 
     const newSem = new PastSemester({
-      userId: req.params.uid,
+      userId: req.params.id,
       semester, spi, cpi, credit
     });
     await newSem.save();
@@ -52,12 +52,12 @@ router.post('/:uid/pastSemesters', async (req, res) => {
 });
 
 // SAVE Focus Session
-router.post('/:uid/focus', async (req, res) => {
+router.post('/:id/focus', async (req, res) => {
   try {
     const { minutes } = req.body;
     if (minutes <= 0) return res.status(400).json({ error: 'Invalid minutes' });
 
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
     const now = new Date();
@@ -80,7 +80,7 @@ router.post('/:uid/focus', async (req, res) => {
     // Log productivity activity
     const { ActivityLog } = require('../models');
     await ActivityLog.create({
-      userId: req.params.uid,
+      userId: req.params.id,
       action: 'focus_session',
       category: req.body.category || 'General',
       duration: minutes
@@ -93,10 +93,10 @@ router.post('/:uid/focus', async (req, res) => {
 });
 
 // GET Attendance
-router.get('/:uid/attendance', async (req, res) => {
+router.get('/:id/attendance', async (req, res) => {
   try {
     const { Attendance } = require('../models');
-    const records = await Attendance.find({ userId: req.params.uid });
+    const records = await Attendance.find({ userId: req.params.id });
     res.json(records);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -162,10 +162,10 @@ router.put('/curriculum/:docId', async (req, res) => {
 // =======================
 
 // GET all documents for a user
-router.get('/:uid/documents', async (req, res) => {
+router.get('/:id/documents', async (req, res) => {
   try {
     const { UserDocument } = require('../models');
-    const docs = await UserDocument.find({ userId: req.params.uid }).sort({ uploadedAt: -1 });
+    const docs = await UserDocument.find({ userId: req.params.id }).sort({ uploadedAt: -1 });
     res.json(docs);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -173,7 +173,7 @@ router.get('/:uid/documents', async (req, res) => {
 });
 
 // POST a new document
-router.post('/:uid/documents', async (req, res) => {
+router.post('/:id/documents', async (req, res) => {
   try {
     const { UserDocument } = require('../models');
     const { name, fileData } = req.body;
@@ -183,7 +183,7 @@ router.post('/:uid/documents', async (req, res) => {
     }
 
     const newDoc = new UserDocument({
-      userId: req.params.uid,
+      userId: req.params.id,
       name,
       fileData
     });
@@ -196,7 +196,7 @@ router.post('/:uid/documents', async (req, res) => {
 });
 
 // DELETE a document
-router.delete('/:uid/documents/:docId', async (req, res) => {
+router.delete('/:id/documents/:docId', async (req, res) => {
   try {
     const { UserDocument } = require('../models');
     await UserDocument.findByIdAndDelete(req.params.docId);
@@ -207,12 +207,12 @@ router.delete('/:uid/documents/:docId', async (req, res) => {
 });
 
 // GET Attendance Meta
-router.get('/:uid/attendanceMeta', async (req, res) => {
+router.get('/:id/attendanceMeta', async (req, res) => {
   try {
     const { AttendanceMeta } = require('../models');
-    let meta = await AttendanceMeta.findOne({ userId: req.params.uid });
+    let meta = await AttendanceMeta.findOne({ userId: req.params.id });
     if (!meta) {
-      meta = new AttendanceMeta({ userId: req.params.uid, lastResetTimestamp: new Date(0) });
+      meta = new AttendanceMeta({ userId: req.params.id, lastResetTimestamp: new Date(0) });
       await meta.save();
     }
     res.json(meta);
@@ -222,11 +222,11 @@ router.get('/:uid/attendanceMeta', async (req, res) => {
 });
 
 // PUT Attendance Meta
-router.put('/:uid/attendanceMeta', async (req, res) => {
+router.put('/:id/attendanceMeta', async (req, res) => {
   try {
     const { AttendanceMeta } = require('../models');
     const meta = await AttendanceMeta.findOneAndUpdate(
-      { userId: req.params.uid },
+      { userId: req.params.id },
       { lastResetTimestamp: new Date() },
       { new: true, upsert: true }
     );
@@ -237,12 +237,12 @@ router.put('/:uid/attendanceMeta', async (req, res) => {
 });
 
 // PUT Attendance (Single Course)
-router.put('/:uid/attendance/:courseCode', async (req, res) => {
+router.put('/:id/attendance/:courseCode', async (req, res) => {
   try {
     const { Attendance } = require('../models');
     
     // Check constraint: Can only mark once per day
-    const existing = await Attendance.findOne({ userId: req.params.uid, courseCode: req.params.courseCode });
+    const existing = await Attendance.findOne({ userId: req.params.id, courseCode: req.params.courseCode });
     if (existing && req.body.lastMarkedDate && existing.lastMarkedDate === req.body.lastMarkedDate) {
       return res.status(400).json({ error: "Attendance already marked for this course today" });
     }
@@ -254,7 +254,7 @@ router.put('/:uid/attendance/:courseCode', async (req, res) => {
     delete req.body.__v;
 
     const attendance = await Attendance.findOneAndUpdate(
-      { userId: req.params.uid, courseCode: req.params.courseCode },
+      { userId: req.params.id, courseCode: req.params.courseCode },
       req.body,
       { new: true, upsert: true }
     );
@@ -265,13 +265,13 @@ router.put('/:uid/attendance/:courseCode', async (req, res) => {
 });
 
 // POST Bulk Update Attendance (For weekly resets / initial skeletons)
-router.post('/:uid/attendance/bulk', async (req, res) => {
+router.post('/:id/attendance/bulk', async (req, res) => {
   try {
     const { Attendance } = require('../models');
     const records = req.body; // Array of objects
     const updates = records.map(record => ({
       updateOne: {
-        filter: { userId: req.params.uid, courseCode: record.courseCode },
+        filter: { userId: req.params.id, courseCode: record.courseCode },
         update: record,
         upsert: true
       }
@@ -295,10 +295,10 @@ router.get('/sem_credits/:branch', async (req, res) => {
 });
 
 // GET Course Grades
-router.get('/:uid/course_grades', async (req, res) => {
+router.get('/:id/course_grades', async (req, res) => {
   try {
     const { CourseGrade } = require('../models');
-    const grades = await CourseGrade.find({ userId: req.params.uid });
+    const grades = await CourseGrade.find({ userId: req.params.id });
     res.json(grades);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -306,11 +306,11 @@ router.get('/:uid/course_grades', async (req, res) => {
 });
 
 // PUT Course Grade
-router.put('/:uid/course_grades/:courseId', async (req, res) => {
+router.put('/:id/course_grades/:courseId', async (req, res) => {
   try {
     const { CourseGrade } = require('../models');
     const grade = await CourseGrade.findOneAndUpdate(
-      { userId: req.params.uid, courseId: req.params.courseId },
+      { userId: req.params.id, courseId: req.params.courseId },
       req.body,
       { new: true, upsert: true }
     );
@@ -321,11 +321,11 @@ router.put('/:uid/course_grades/:courseId', async (req, res) => {
 });
 
 // PUT Past Semester (Update SPI)
-router.put('/:uid/pastSemesters/:semester', async (req, res) => {
+router.put('/:id/pastSemesters/:semester', async (req, res) => {
   try {
     const { PastSemester } = require('../models');
     const sem = await PastSemester.findOneAndUpdate(
-      { userId: req.params.uid, semester: req.params.semester },
+      { userId: req.params.id, semester: req.params.semester },
       req.body,
       { new: true }
     );
@@ -336,12 +336,12 @@ router.put('/:uid/pastSemesters/:semester', async (req, res) => {
 });
 
 // POST Roll Semester
-router.post('/:uid/roll_semester', async (req, res) => {
+router.post('/:id/roll_semester', async (req, res) => {
   try {
     const { Student, PastSemester } = require('../models');
     const { currentSem, spiForCurrentSem, cpiForCurrentSem, creditForCurrentSem } = req.body;
     
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
     // Validate rollover logic
@@ -365,10 +365,10 @@ router.post('/:uid/roll_semester', async (req, res) => {
     }
 
     // Archive semester
-    const existing = await PastSemester.findOne({ userId: req.params.uid, semester: currentSem });
+    const existing = await PastSemester.findOne({ userId: req.params.id, semester: currentSem });
     if (!existing) {
       const newSem = new PastSemester({
-        userId: req.params.uid,
+        userId: req.params.id,
         semester: currentSem,
         spi: spiForCurrentSem,
         cpi: cpiForCurrentSem,
@@ -390,14 +390,14 @@ router.post('/:uid/roll_semester', async (req, res) => {
 });
 
 // PUT Student Image
-router.put('/:uid/images/:slot', async (req, res) => {
+router.put('/:id/images/:slot', async (req, res) => {
   try {
     const { Student } = require('../models');
     const updateQuery = {};
     updateQuery[`images.${req.params.slot}`] = req.body.url;
     
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { $set: updateQuery },
       { new: true, upsert: true }
     );
@@ -408,14 +408,14 @@ router.put('/:uid/images/:slot', async (req, res) => {
 });
 
 // DELETE Student Image
-router.delete('/:uid/images/:slot', async (req, res) => {
+router.delete('/:id/images/:slot', async (req, res) => {
   try {
     const { Student } = require('../models');
     const updateQuery = {};
     updateQuery[`images.${req.params.slot}`] = 1;
     
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { $unset: updateQuery },
       { new: true }
     );
@@ -442,12 +442,12 @@ const LEETCODE_PROBLEMS = [
   { titleSlug: "longest-substring-without-repeating-characters", name: "Longest Substring Without Repeating Characters", difficulty: "Medium" },
 ];
 
-router.put('/:uid/leetcode/link', async (req, res) => {
+router.put('/:id/leetcode/link', async (req, res) => {
   try {
     const { Student } = require('../models');
     const { username } = req.body;
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { leetcodeUsername: username },
       { new: true }
     );
@@ -457,7 +457,7 @@ router.put('/:uid/leetcode/link', async (req, res) => {
   }
 });
 
-router.get('/:uid/leetcode/challenge', async (req, res) => {
+router.get('/:id/leetcode/challenge', async (req, res) => {
   try {
     // Pick a problem based on the day of the year so everyone gets the same one
     const start = new Date(new Date().getFullYear(), 0, 0);
@@ -472,10 +472,10 @@ router.get('/:uid/leetcode/challenge', async (req, res) => {
   }
 });
 
-router.post('/:uid/leetcode/verify', async (req, res) => {
+router.post('/:id/leetcode/verify', async (req, res) => {
   try {
     const { Student } = require('../models');
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student || !student.leetcodeUsername) {
       return res.status(400).json({ error: 'LeetCode username not linked' });
     }
@@ -564,7 +564,7 @@ async function getCodeforcesProblems() {
   return [];
 }
 
-router.put('/:uid/codeforces/link', async (req, res) => {
+router.put('/:id/codeforces/link', async (req, res) => {
   try {
     const { Student } = require('../models');
     const { username } = req.body;
@@ -580,7 +580,7 @@ router.put('/:uid/codeforces/link', async (req, res) => {
     const rating = cfData.result[0].rating || 800;
 
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { codeforcesUsername: username, codeforcesRating: rating },
       { new: true }
     );
@@ -590,10 +590,10 @@ router.put('/:uid/codeforces/link', async (req, res) => {
   }
 });
 
-router.get('/:uid/codeforces/challenge', async (req, res) => {
+router.get('/:id/codeforces/challenge', async (req, res) => {
   try {
     const { Student } = require('../models');
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student || !student.codeforcesUsername) {
       return res.status(400).json({ error: 'Codeforces username not linked' });
     }
@@ -627,10 +627,10 @@ router.get('/:uid/codeforces/challenge', async (req, res) => {
   }
 });
 
-router.post('/:uid/codeforces/verify', async (req, res) => {
+router.post('/:id/codeforces/verify', async (req, res) => {
   try {
     const { Student } = require('../models');
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student || !student.codeforcesUsername) {
       return res.status(400).json({ error: 'Codeforces username not linked' });
     }
@@ -706,7 +706,7 @@ async function getAtcoderProblems() {
   }
 }
 
-router.put('/:uid/atcoder/link', async (req, res) => {
+router.put('/:id/atcoder/link', async (req, res) => {
   try {
     const { Student } = require('../models');
     const { username } = req.body;
@@ -714,7 +714,7 @@ router.put('/:uid/atcoder/link', async (req, res) => {
     // Kenkoooo user info (no official API for ratings, but we can verify handle exists via submission check or just accept it)
     // We will just accept it for now and set rating to 0.
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { atcoderUsername: username, atcoderRating: 0 },
       { new: true }
     );
@@ -724,10 +724,10 @@ router.put('/:uid/atcoder/link', async (req, res) => {
   }
 });
 
-router.get('/:uid/atcoder/challenge', async (req, res) => {
+router.get('/:id/atcoder/challenge', async (req, res) => {
   try {
     const { Student } = require('../models');
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student || !student.atcoderUsername) return res.status(400).json({ error: 'AtCoder not linked' });
 
     const problems = await getAtcoderProblems();
@@ -752,10 +752,10 @@ router.get('/:uid/atcoder/challenge', async (req, res) => {
   }
 });
 
-router.post('/:uid/atcoder/verify', async (req, res) => {
+router.post('/:id/atcoder/verify', async (req, res) => {
   try {
     const { Student } = require('../models');
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student || !student.atcoderUsername) return res.status(400).json({ error: 'AtCoder not linked' });
 
     const problems = await getAtcoderProblems();
@@ -798,12 +798,12 @@ const codechefProblems = [
   { code: 'MAXDIFFMIN', name: 'Max minus Min', difficulty: 'Beginner' }
 ];
 
-router.put('/:uid/codechef/link', async (req, res) => {
+router.put('/:id/codechef/link', async (req, res) => {
   try {
     const { Student } = require('../models');
     const { username } = req.body;
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { codechefUsername: username },
       { new: true }
     );
@@ -813,10 +813,10 @@ router.put('/:uid/codechef/link', async (req, res) => {
   }
 });
 
-router.get('/:uid/codechef/challenge', async (req, res) => {
+router.get('/:id/codechef/challenge', async (req, res) => {
   try {
     const { Student } = require('../models');
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student || !student.codechefUsername) return res.status(400).json({ error: 'CodeChef not linked' });
 
     const start = new Date(new Date().getFullYear(), 0, 0);
@@ -829,10 +829,10 @@ router.get('/:uid/codechef/challenge', async (req, res) => {
   }
 });
 
-router.post('/:uid/codechef/verify', async (req, res) => {
+router.post('/:id/codechef/verify', async (req, res) => {
   try {
     const { Student } = require('../models');
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student || !student.codechefUsername) return res.status(400).json({ error: 'CodeChef not linked' });
 
     // Option A: Self-Report Logic
@@ -905,11 +905,11 @@ router.get('/hub/contests/upcoming', async (req, res) => {
 });
 
 // PUT update working hours
-router.put('/:uid/working-hours', async (req, res) => {
+router.put('/:id/working-hours', async (req, res) => {
   try {
     const { Student } = require('../models');
     const student = await Student.findOneAndUpdate(
-      { uid: req.params.uid },
+      { _id: req.params.id },
       { workingHours: req.body.workingHours },
       { new: true }
     );
@@ -920,9 +920,9 @@ router.put('/:uid/working-hours', async (req, res) => {
 });
 
 // GET Student Data (Moved to bottom to prevent route shadowing)
-router.get('/:uid', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -933,3 +933,4 @@ router.get('/:uid', async (req, res) => {
 });
 
 module.exports = router;
+

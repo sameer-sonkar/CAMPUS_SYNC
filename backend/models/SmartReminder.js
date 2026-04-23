@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const smartReminderSchema = new mongoose.Schema({
-  userId: { type: String, required: true, index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true, index: true },
   source: { type: String, enum: ['planner', 'library'], required: true },
   title: { type: String, required: true },
   dateTime: { type: Date, required: true },

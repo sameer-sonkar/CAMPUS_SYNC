@@ -3,9 +3,9 @@ const router = express.Router();
 const { PlannerTask, SmartReminder } = require('../models');
 
 // GET all tasks for a user
-router.get('/:uid', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const tasks = await PlannerTask.find({ userId: req.params.uid }).sort({ dueDate: 1 });
+    const tasks = await PlannerTask.find({ userId: req.params.id }).sort({ dueDate: 1 });
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -13,17 +13,17 @@ router.get('/:uid', async (req, res) => {
 });
 
 // ADD a new task
-router.post('/:uid', async (req, res) => {
+router.post('/:id', async (req, res) => {
   try {
     const taskData = req.body;
-    taskData.userId = req.params.uid;
+    taskData.userId = req.params.id;
     const newTask = new PlannerTask(taskData);
     await newTask.save();
 
     // Mirror to SmartReminder if requested
     if (newTask.isSmartReminder) {
       const reminder = new SmartReminder({
-        userId: req.params.uid,
+        userId: req.params.id,
         source: 'planner',
         title: newTask.title,
         description: newTask.description,
@@ -40,10 +40,10 @@ router.post('/:uid', async (req, res) => {
 });
 
 // UPDATE a task
-router.put('/:uid/:taskId', async (req, res) => {
+router.put('/:id/:taskId', async (req, res) => {
   try {
     const task = await PlannerTask.findOneAndUpdate(
-      { _id: req.params.taskId, userId: req.params.uid },
+      { _id: req.params.taskId, userId: req.params.id },
       req.body,
       { new: true }
     );
@@ -51,12 +51,12 @@ router.put('/:uid/:taskId', async (req, res) => {
     if (task.isSmartReminder) {
       if (task.isCompleted) {
         await SmartReminder.findOneAndUpdate(
-          { originalId: task._id.toString(), userId: req.params.uid },
+          { originalId: task._id.toString(), userId: req.params.id },
           { isRead: true }
         );
       } else {
         await SmartReminder.findOneAndUpdate(
-          { originalId: task._id.toString(), userId: req.params.uid },
+          { originalId: task._id.toString(), userId: req.params.id },
           { 
             title: task.title, 
             description: task.description, 
@@ -66,7 +66,7 @@ router.put('/:uid/:taskId', async (req, res) => {
         );
       }
     } else {
-      await SmartReminder.findOneAndDelete({ originalId: task._id.toString(), userId: req.params.uid });
+      await SmartReminder.findOneAndDelete({ originalId: task._id.toString(), userId: req.params.id });
     }
 
     // Log productivity activity if completed
@@ -76,7 +76,7 @@ router.put('/:uid/:taskId', async (req, res) => {
       const category = categoryMatch ? categoryMatch[1].trim() : 'Task';
       
       await ActivityLog.create({
-        userId: req.params.uid,
+        userId: req.params.id,
         action: 'task_completed',
         category: category
       });
@@ -89,24 +89,24 @@ router.put('/:uid/:taskId', async (req, res) => {
 });
 
 // DELETE a task
-router.delete('/:uid/:taskId', async (req, res) => {
+router.delete('/:id/:taskId', async (req, res) => {
   try {
-    await PlannerTask.findOneAndDelete({ _id: req.params.taskId, userId: req.params.uid });
-    await SmartReminder.findOneAndDelete({ originalId: req.params.taskId, userId: req.params.uid });
+    await PlannerTask.findOneAndDelete({ _id: req.params.taskId, userId: req.params.id });
+    await SmartReminder.findOneAndDelete({ originalId: req.params.taskId, userId: req.params.id });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /:uid/schedule-suggestion (Smart Scheduling Algorithm)
-router.post('/:uid/schedule-suggestion', async (req, res) => {
+// POST /:id/schedule-suggestion (Smart Scheduling Algorithm)
+router.post('/:id/schedule-suggestion', async (req, res) => {
   try {
     const { title, dueDate, priority, estimatedTime } = req.body;
     const { Student, Timetable, PlannerTask } = require('../models');
     
     // 1. Fetch Student preferences & docId
-    const student = await Student.findOne({ uid: req.params.uid });
+    const student = await Student.findOne({ _id: req.params.id });
     if (!student) return res.status(404).json({ error: "Student not found" });
 
     const whStart = student.workingHours?.start || "08:00";
@@ -120,7 +120,7 @@ router.post('/:uid/schedule-suggestion', async (req, res) => {
 
     // 3. Fetch existing scheduled tasks
     const existingTasks = await PlannerTask.find({ 
-      userId: req.params.uid, 
+      userId: req.params.id, 
       scheduledStart: { $exists: true },
       isCompleted: false 
     });
@@ -258,3 +258,4 @@ router.post('/:uid/schedule-suggestion', async (req, res) => {
 });
 
 module.exports = router;
+

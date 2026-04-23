@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const dsaSubmissionSchema = new mongoose.Schema({
-  userId: { type: String, required: true, index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true, index: true },
   title: { type: String, required: true },
   link: { type: String, default: '' },
   platform: { type: String, enum: ['LeetCode', 'Codeforces', 'AtCoder', 'CodeChef', 'GeeksforGeeks', 'Other'], default: 'Other' },

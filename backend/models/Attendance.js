@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const attendanceSchema = new mongoose.Schema({
-  userId: { type: String, required: true, index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true, index: true },
   courseCode: { type: String, required: true },
   attended: { type: Number, default: 0 },
   total: { type: Number, default: 0 },

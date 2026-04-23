@@ -3,9 +3,9 @@ const router = express.Router();
 const { SmartReminder, LibraryBook, PlannerTask } = require('../models');
 
 // GET Smart Reminders
-router.get('/:uid', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const reminders = await SmartReminder.find({ userId: req.params.uid }).sort({ createdAt: -1 });
+    const reminders = await SmartReminder.find({ userId: req.params.id }).sort({ createdAt: -1 });
     res.json(reminders);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -13,11 +13,11 @@ router.get('/:uid', async (req, res) => {
 });
 
 // TOGGLE Smart Reminder Read Status
-router.put('/:uid/:reminderId/read', async (req, res) => {
+router.put('/:id/:reminderId/read', async (req, res) => {
   try {
     const { isRead } = req.body;
     const reminder = await SmartReminder.findOneAndUpdate(
-      { userId: req.params.uid, _id: req.params.reminderId },
+      { userId: req.params.id, _id: req.params.reminderId },
       { isRead },
       { new: true }
     );
@@ -28,9 +28,9 @@ router.put('/:uid/:reminderId/read', async (req, res) => {
 });
 
 // DELETE Smart Reminder
-router.delete('/:uid/:reminderId', async (req, res) => {
+router.delete('/:id/:reminderId', async (req, res) => {
   try {
-    await SmartReminder.findOneAndDelete({ userId: req.params.uid, _id: req.params.reminderId });
+    await SmartReminder.findOneAndDelete({ userId: req.params.id, _id: req.params.reminderId });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -38,9 +38,9 @@ router.delete('/:uid/:reminderId', async (req, res) => {
 });
 
 // GET Library Books
-router.get('/:uid/library', async (req, res) => {
+router.get('/:id/library', async (req, res) => {
   try {
-    const books = await LibraryBook.find({ userId: req.params.uid, isDeleted: false }).sort({ dueDate: 1 });
+    const books = await LibraryBook.find({ userId: req.params.id, isDeleted: false }).sort({ dueDate: 1 });
     res.json(books);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -48,12 +48,12 @@ router.get('/:uid/library', async (req, res) => {
 });
 
 // ADD Library Book
-router.post('/:uid/library', async (req, res) => {
+router.post('/:id/library', async (req, res) => {
   try {
     const { title, dueDate } = req.body;
     
     const newBook = new LibraryBook({
-      userId: req.params.uid,
+      userId: req.params.id,
       title,
       dueDate: new Date(dueDate)
     });
@@ -61,7 +61,7 @@ router.post('/:uid/library', async (req, res) => {
 
     // Create a matching Smart Reminder
     const newReminder = new SmartReminder({
-      userId: req.params.uid,
+      userId: req.params.id,
       source: 'library',
       title: `Return "${title}"`,
       dateTime: new Date(dueDate),
@@ -75,7 +75,7 @@ router.post('/:uid/library', async (req, res) => {
   }
 });
 // DELETE Library Book
-router.delete('/:uid/library/:bookId', async (req, res) => {
+router.delete('/:id/library/:bookId', async (req, res) => {
   try {
     await LibraryBook.findByIdAndUpdate(req.params.bookId, { isDeleted: true });
     res.json({ success: true });
@@ -85,10 +85,10 @@ router.delete('/:uid/library/:bookId', async (req, res) => {
 });
 
 
-router.get('/:uid/planner-active', async (req, res) => {
+router.get('/:id/planner-active', async (req, res) => {
   try {
     const tasks = await PlannerTask.find({ 
-      userId: req.params.uid, 
+      userId: req.params.id, 
       isSmartReminder: true, 
       isCompleted: false 
     });
@@ -110,12 +110,12 @@ router.get('/admin', async (req, res) => {
 });
 
 // GET Admin State for User
-router.get('/admin/state/:uid', async (req, res) => {
+router.get('/admin/state/:id', async (req, res) => {
   try {
     const { AdminState } = require('../models');
-    let state = await AdminState.findOne({ userId: req.params.uid });
+    let state = await AdminState.findOne({ userId: req.params.id });
     if (!state) {
-      state = new AdminState({ userId: req.params.uid, read_ids: [], dismissed_ids: [] });
+      state = new AdminState({ userId: req.params.id, read_ids: [], dismissed_ids: [] });
       await state.save();
     }
     res.json(state);
@@ -125,7 +125,7 @@ router.get('/admin/state/:uid', async (req, res) => {
 });
 
 // PUT Admin State (Toggle Read/Dismiss)
-router.put('/admin/state/:uid', async (req, res) => {
+router.put('/admin/state/:id', async (req, res) => {
   try {
     const { action, id } = req.body; // action: 'read', 'unread', 'dismiss'
     const { AdminState } = require('../models');
@@ -136,7 +136,7 @@ router.put('/admin/state/:uid', async (req, res) => {
     else if (action === 'dismiss') update = { $addToSet: { dismissed_ids: id } };
 
     const state = await AdminState.findOneAndUpdate(
-      { userId: req.params.uid },
+      { userId: req.params.id },
       update,
       { new: true, upsert: true }
     );
@@ -178,3 +178,4 @@ router.delete('/admin/:id', async (req, res) => {
 });
 
 module.exports = router;
+

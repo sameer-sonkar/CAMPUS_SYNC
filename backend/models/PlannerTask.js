@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const plannerTaskSchema = new mongoose.Schema({
-  userId: { type: String, required: true, index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true, index: true },
   title: { type: String, required: true },
   description: { type: String, default: '' },
   dueDate: { type: Date, required: true },
