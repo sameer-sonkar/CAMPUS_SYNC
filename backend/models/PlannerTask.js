@@ -5,7 +5,12 @@ const plannerTaskSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, default: '' },
   dueDate: { type: Date, required: true },
+  priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+  estimatedTime: { type: Number, default: 1 }, // in hours
+  scheduledStart: { type: Date },
+  scheduledEnd: { type: Date },
   isCompleted: { type: Boolean, default: false },
+  status: { type: String, enum: ['todo', 'in-progress', 'completed'], default: 'todo' },
   isSmartReminder: { type: Boolean, default: false }
 }, { timestamps: true });
 

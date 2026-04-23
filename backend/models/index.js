@@ -12,5 +12,7 @@ module.exports = {
   AttendanceMeta: require('./AttendanceMeta'),
   CourseGrade: require('./CourseGrade'),
   SemCredit: require('./SemCredit'),
-  UserDocument: require('./UserDocument')
+  UserDocument: require('./UserDocument'),
+  ActivityLog: require('./ActivityLog'),
+  DSASubmission: require('./DSASubmission')
 };

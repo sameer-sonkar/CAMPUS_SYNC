@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { studentService } from '@/lib/api';
+import { HeaderLink, ProfileWrapper, ProfileImage, InitialsAvatar } from './HeaderStyles';
 
 export default function HeaderAvatar() {
   const [profile, setProfile] = useState(null);
@@ -25,20 +25,19 @@ export default function HeaderAvatar() {
     : 'CS';
 
   return (
-    <Link href="/profile" style={{ textDecoration: 'none' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}>
+    <HeaderLink href="/profile">
+      <ProfileWrapper>
         {profile?.profilePic ? (
-          <img 
+          <ProfileImage 
             src={profile.profilePic} 
             alt="Profile" 
-            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} 
           />
         ) : (
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#1A1D20' }}>
+          <InitialsAvatar>
             {initials}
-          </div>
+          </InitialsAvatar>
         )}
-      </div>
-    </Link>
+      </ProfileWrapper>
+    </HeaderLink>
   );
 }

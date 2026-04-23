@@ -1,7 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
@@ -55,12 +56,16 @@ const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
 const plannerRoutes = require('./routes/plannerRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const dsaRoutes = require('./routes/dsaRoutes');
 const { verifyToken } = require('./middleware/authMiddleware');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/students', verifyToken, studentRoutes);
 app.use('/api/reminders', verifyToken, reminderRoutes);
 app.use('/api/planner', verifyToken, plannerRoutes);
+app.use('/api/analytics', verifyToken, analyticsRoutes);
+app.use('/api/dsa', verifyToken, dsaRoutes);
 
 // Basic Health Check Route
 app.get('/health', (req, res) => {

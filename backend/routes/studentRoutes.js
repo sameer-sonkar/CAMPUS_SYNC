@@ -2,18 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Student, PastSemester } = require('../models');
 
-// GET Student Data
-router.get('/:uid', async (req, res) => {
-  try {
-    const student = await Student.findOne({ uid: req.params.uid });
-    if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
-    }
-    res.json(student);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// (Moved GET /:uid to the bottom to prevent route shadowing)
 
 // UPDATE Student Data
 router.put('/:uid', async (req, res) => {
@@ -87,6 +76,16 @@ router.post('/:uid/focus', async (req, res) => {
     student.focusStats.dailyLog.set(dateKey, currentDaily + minutes);
 
     await student.save();
+
+    // Log productivity activity
+    const { ActivityLog } = require('../models');
+    await ActivityLog.create({
+      userId: req.params.uid,
+      action: 'focus_session',
+      category: req.body.category || 'General',
+      duration: minutes
+    });
+
     res.json(student.focusStats);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -138,6 +137,21 @@ router.get('/curriculum/:docId', async (req, res) => {
     const curr = await Curriculum.findOne({ docId: req.params.docId });
     if (!curr) return res.status(404).json({ error: 'Curriculum not found' });
     res.json(curr);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT Curriculum (Admin updating the global curriculum)
+router.put('/curriculum/:docId', async (req, res) => {
+  try {
+    const { Curriculum } = require('../models');
+    const updatedCurr = await Curriculum.findOneAndUpdate(
+      { docId: req.params.docId },
+      req.body,
+      { new: true, upsert: true }
+    );
+    res.json(updatedCurr);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -666,6 +680,253 @@ router.post('/:uid/codeforces/verify', async (req, res) => {
     } else {
       return res.json({ success: true, verified: false, message: "No recent accepted submission found. Make sure your verdict is OK and try again." });
     }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =======================
+// ATCODER INTEGRATION
+// =======================
+let atcoderProblemsCache = null;
+let lastAtcoderCacheTime = null;
+
+async function getAtcoderProblems() {
+  if (atcoderProblemsCache && (Date.now() - lastAtcoderCacheTime < 24 * 60 * 60 * 1000)) {
+    return atcoderProblemsCache;
+  }
+  try {
+    const res = await fetch('https://kenkoooo.com/atcoder/resources/problems.json');
+    const data = await res.json();
+    atcoderProblemsCache = data;
+    lastAtcoderCacheTime = Date.now();
+    return atcoderProblemsCache;
+  } catch (error) {
+    return [];
+  }
+}
+
+router.put('/:uid/atcoder/link', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    const { username } = req.body;
+    
+    // Kenkoooo user info (no official API for ratings, but we can verify handle exists via submission check or just accept it)
+    // We will just accept it for now and set rating to 0.
+    const student = await Student.findOneAndUpdate(
+      { uid: req.params.uid },
+      { atcoderUsername: username, atcoderRating: 0 },
+      { new: true }
+    );
+    res.json(student);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/:uid/atcoder/challenge', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    const student = await Student.findOne({ uid: req.params.uid });
+    if (!student || !student.atcoderUsername) return res.status(400).json({ error: 'AtCoder not linked' });
+
+    const problems = await getAtcoderProblems();
+    // Filter out beginner ABC problems (easy/medium)
+    const abcProblems = problems.filter(p => p.id.startsWith('abc') && (p.id.endsWith('_a') || p.id.endsWith('_b') || p.id.endsWith('_c')));
+    
+    if (abcProblems.length === 0) return res.status(400).json({ error: 'No problems loaded' });
+
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((new Date() - start) / (1000 * 60 * 60 * 24));
+    const seed = dayOfYear + student.atcoderUsername.length;
+    const problem = abcProblems[seed % abcProblems.length];
+    
+    res.json({
+      id: problem.id,
+      name: problem.name,
+      contestId: problem.contest_id,
+      difficulty: problem.id.endsWith('_a') ? 'Easy' : problem.id.endsWith('_b') ? 'Medium' : 'Hard'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:uid/atcoder/verify', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    const student = await Student.findOne({ uid: req.params.uid });
+    if (!student || !student.atcoderUsername) return res.status(400).json({ error: 'AtCoder not linked' });
+
+    const problems = await getAtcoderProblems();
+    const abcProblems = problems.filter(p => p.id.startsWith('abc') && (p.id.endsWith('_a') || p.id.endsWith('_b') || p.id.endsWith('_c')));
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((new Date() - start) / (1000 * 60 * 60 * 24));
+    const challenge = abcProblems[(dayOfYear + student.atcoderUsername.length) % abcProblems.length];
+
+    // Kenkoooo user submissions API
+    const subRes = await fetch(`https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${student.atcoderUsername}&from_second=${Math.floor(Date.now()/1000) - 86400}`);
+    const submissions = await subRes.json();
+    
+    const solvedToday = submissions.find(sub => sub.problem_id === challenge.id && sub.result === 'AC');
+
+    if (solvedToday) {
+      const today = new Date().toISOString().split('T')[0];
+      const lastUpdate = student.lastAtcoderSolveDate ? new Date(student.lastAtcoderSolveDate).toISOString().split('T')[0] : null;
+      if (lastUpdate !== today) {
+        student.atcoderStreak = (student.atcoderStreak || 0) + 1;
+        student.lastAtcoderSolveDate = new Date();
+        await student.save();
+        return res.json({ success: true, verified: true, streak: student.atcoderStreak, message: "AtCoder verified!" });
+      }
+      return res.json({ success: true, verified: true, streak: student.atcoderStreak, message: "Already claimed today!" });
+    }
+    return res.json({ success: true, verified: false, message: "No recent AC submission found on AtCoder." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =======================
+// CODECHEF INTEGRATION (SELF-REPORT)
+// =======================
+const codechefProblems = [
+  { code: 'WATERCONS', name: 'Water Consumption', difficulty: 'Beginner' },
+  { code: 'SQUATS', name: 'Squats', difficulty: 'Beginner' },
+  { code: 'TAXSAVING', name: 'Saving Taxes', difficulty: 'Beginner' },
+  { code: 'MINCOINS', name: 'Minimum Coins', difficulty: 'Beginner' },
+  { code: 'MAXDIFFMIN', name: 'Max minus Min', difficulty: 'Beginner' }
+];
+
+router.put('/:uid/codechef/link', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    const { username } = req.body;
+    const student = await Student.findOneAndUpdate(
+      { uid: req.params.uid },
+      { codechefUsername: username },
+      { new: true }
+    );
+    res.json(student);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/:uid/codechef/challenge', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    const student = await Student.findOne({ uid: req.params.uid });
+    if (!student || !student.codechefUsername) return res.status(400).json({ error: 'CodeChef not linked' });
+
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((new Date() - start) / (1000 * 60 * 60 * 24));
+    const challenge = codechefProblems[(dayOfYear + student.codechefUsername.length) % codechefProblems.length];
+    
+    res.json(challenge);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:uid/codechef/verify', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    const student = await Student.findOne({ uid: req.params.uid });
+    if (!student || !student.codechefUsername) return res.status(400).json({ error: 'CodeChef not linked' });
+
+    // Option A: Self-Report Logic
+    const today = new Date().toISOString().split('T')[0];
+    const lastUpdate = student.lastCodechefSolveDate ? new Date(student.lastCodechefSolveDate).toISOString().split('T')[0] : null;
+    
+    if (lastUpdate !== today) {
+      student.codechefStreak = (student.codechefStreak || 0) + 1;
+      student.lastCodechefSolveDate = new Date();
+      await student.save();
+      return res.json({ success: true, verified: true, streak: student.codechefStreak, message: "CodeChef self-reported successfully!" });
+    }
+    return res.json({ success: true, verified: true, streak: student.codechefStreak, message: "Already claimed today!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =======================
+// CONTESTS API
+// =======================
+let upcomingContestsCache = null;
+let lastContestCacheTime = null;
+
+router.get('/hub/contests/upcoming', async (req, res) => {
+  try {
+    let contests = [];
+    
+    if (upcomingContestsCache && (Date.now() - lastContestCacheTime < 60 * 60 * 1000)) {
+      contests = [...upcomingContestsCache];
+    } else {
+      const cfRes = await fetch('https://codeforces.com/api/contest.list');
+      const cfData = await cfRes.json();
+      
+      if (cfData.status === 'OK') {
+        const upcoming = cfData.result.filter(c => c.phase === 'BEFORE').slice(0, 5);
+        contests = upcoming.map(c => ({
+          platform: 'Codeforces',
+          name: c.name,
+          startTime: new Date(c.startTimeSeconds * 1000).toISOString(),
+          durationSeconds: c.durationSeconds,
+          link: 'https://codeforces.com/contests'
+        }));
+        
+        upcomingContestsCache = contests;
+        lastContestCacheTime = Date.now();
+      }
+    }
+    
+    // Add fake predictable Leetcode contest for Sunday
+    const nextSunday = new Date();
+    nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()) % 7);
+    nextSunday.setHours(8, 0, 0, 0); // 8 AM local time usually
+    
+    contests.push({
+      platform: 'LeetCode',
+      name: 'Weekly Contest',
+      startTime: nextSunday.toISOString(),
+      durationSeconds: 5400,
+      link: 'https://leetcode.com/contest/'
+    });
+
+    // Sort by time
+    contests.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    
+    res.json(contests);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT update working hours
+router.put('/:uid/working-hours', async (req, res) => {
+  try {
+    const { Student } = require('../models');
+    const student = await Student.findOneAndUpdate(
+      { uid: req.params.uid },
+      { workingHours: req.body.workingHours },
+      { new: true }
+    );
+    res.json(student);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET Student Data (Moved to bottom to prevent route shadowing)
+router.get('/:uid', async (req, res) => {
+  try {
+    const student = await Student.findOne({ uid: req.params.uid });
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    res.json(student);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
