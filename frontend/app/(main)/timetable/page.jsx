@@ -181,7 +181,7 @@ export default function TimetablePage() {
       </DaySelector>
 
       <ClassList>
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {isLoading ? (
             <LoadingState key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               Loading schedule...

@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }) {
       <Sidebar />
       <MainContent>
         <HeaderBar>
-          <HeaderAvatar />
+          {/* <HeaderAvatar /> - Hidden as per user request */}
         </HeaderBar>
         <PageScrollArea>
           {children}
