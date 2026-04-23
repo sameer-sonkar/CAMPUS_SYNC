@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, BookOpen, Calendar, GraduationCap, User, Settings } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Calendar, GraduationCap, User, Settings, Folder, Code } from 'lucide-react';
 import { studentService } from '@/lib/api';
 
 export default function Sidebar() {
@@ -32,6 +32,8 @@ export default function Sidebar() {
     { name: 'Planner', path: '/planner', icon: <BookOpen size={20} /> },
     { name: 'Timetable', path: '/timetable', icon: <Calendar size={20} /> },
     { name: 'Grades', path: '/grades', icon: <GraduationCap size={20} /> },
+    { name: 'My Documents', path: '/documents', icon: <Folder size={20} /> },
+    { name: 'Algorithms Hub', path: '/coding', icon: <Code size={20} /> },
     { name: 'Profile', path: '/profile', icon: <User size={20} /> },
   ];
 

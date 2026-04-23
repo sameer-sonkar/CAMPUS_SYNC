@@ -11,5 +11,6 @@ module.exports = {
   Curriculum: require('./Curriculum'),
   AttendanceMeta: require('./AttendanceMeta'),
   CourseGrade: require('./CourseGrade'),
-  SemCredit: require('./SemCredit')
+  SemCredit: require('./SemCredit'),
+  UserDocument: require('./UserDocument')
 };

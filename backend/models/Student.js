@@ -18,6 +18,15 @@ const studentSchema = new mongoose.Schema({
   lastSemRollDate: { type: Date },
   role: { type: String, enum: ['student', 'admin'], default: 'student' },
   
+  leetcodeUsername: { type: String, default: '' },
+  leetcodeStreak: { type: Number, default: 0 },
+  lastLeetcodeSolveDate: { type: Date },
+  
+  codeforcesUsername: { type: String, default: '' },
+  codeforcesRating: { type: Number, default: 800 },
+  codeforcesStreak: { type: Number, default: 0 },
+  lastCodeforcesSolveDate: { type: Date },
+  
   // Focus Stats embedded
   focusStats: {
     todayMinutes: { type: Number, default: 0 },

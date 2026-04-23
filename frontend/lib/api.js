@@ -90,6 +90,51 @@ export const attendanceService = {
   }
 };
 
+export const documentService = {
+  getDocuments: async (uid) => {
+    const response = await api.get(`/students/${uid}/documents`);
+    return response.data;
+  },
+  uploadDocument: async (uid, name, fileData) => {
+    const response = await api.post(`/students/${uid}/documents`, { name, fileData });
+    return response.data;
+  },
+  deleteDocument: async (uid, docId) => {
+    const response = await api.delete(`/students/${uid}/documents/${docId}`);
+    return response.data;
+  }
+};
+
+export const leetcodeService = {
+  linkUsername: async (uid, username) => {
+    const response = await api.put(`/students/${uid}/leetcode/link`, { username });
+    return response.data;
+  },
+  getChallenge: async (uid) => {
+    const response = await api.get(`/students/${uid}/leetcode/challenge`);
+    return response.data;
+  },
+  verifyChallenge: async (uid) => {
+    const response = await api.post(`/students/${uid}/leetcode/verify`);
+    return response.data;
+  }
+};
+
+export const codeforcesService = {
+  linkUsername: async (uid, username) => {
+    const response = await api.put(`/students/${uid}/codeforces/link`, { username });
+    return response.data;
+  },
+  getChallenge: async (uid) => {
+    const response = await api.get(`/students/${uid}/codeforces/challenge`);
+    return response.data;
+  },
+  verifyChallenge: async (uid) => {
+    const response = await api.post(`/students/${uid}/codeforces/verify`);
+    return response.data;
+  }
+};
+
 export const reminderService = {
   getSmartReminders: async (uid) => {
     const response = await api.get(`/reminders/${uid}`);
