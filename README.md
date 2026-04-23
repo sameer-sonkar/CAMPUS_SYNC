@@ -71,7 +71,7 @@ Make sure you have the following installed:
    ```
    Create a `.env` file in the `backend` directory and add your variables:
    ```env
-   PORT=3000
+   PORT=3001
    MONGODB_URI=mongodb://localhost:27017/campus_sync
    JWT_SECRET=your_super_secret_key
    ```
@@ -93,7 +93,7 @@ Make sure you have the following installed:
    ```
 
 4. **Open the App**
-   Open [http://localhost:3000](http://localhost:3000) (or whichever port Next.js is running on) in your browser.
+   Open [http://localhost:3001](http://localhost:3001) (or whichever port Next.js is running on) in your browser.
 
 ---
 
